@@ -5,10 +5,16 @@ from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize
 from nltk.stem import SnowballStemmer
 import re
+import os
+from transformers import pipeline
 
-# Télécharger les ressources NLTK nécessaires
-nltk.download('punkt')
-nltk.download('stopwords')
+# Créer un répertoire pour les données NLTK avec les bonnes permissions
+nltk_data_dir = os.path.join(os.getcwd(), 'nltk_data')
+os.makedirs(nltk_data_dir, exist_ok=True)
+nltk.data.path.append(nltk_data_dir)
+
+# Télécharger les données NLTK nécessaires
+nltk.download('punkt', download_dir=nltk_data_dir)
 
 # Dictionnaire de mots négatifs en français avec leurs poids
 FRENCH_NEGATIVE_WORDS = {
@@ -96,6 +102,11 @@ FRENCH_NEUTRAL_WORDS = {
 # Charger le modèle et le vectorizer
 model = joblib.load('sentiment_model.pkl')
 vectorizer = joblib.load('vectorizer.pkl')
+
+# Charger le modèle de sentiment analysis en français
+@st.cache_resource
+def load_model():
+    return pipeline("sentiment-analysis", model="nlptown/bert-base-multilingual-uncased-sentiment")
 
 def preprocess(text):
     # Gérer les valeurs manquantes

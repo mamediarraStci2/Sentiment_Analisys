@@ -54,4 +54,7 @@ logs/
 # Environment variables
 .env
 .env.*
-!.env.example 
+!.env.example
+
+# NLTK Data
+nltk_data/ 
