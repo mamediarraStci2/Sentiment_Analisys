@@ -144,12 +144,31 @@ def predict_sentiment(text):
     # Prétraitement
     cleaned = preprocess(text)
     
+    # Vérifier si la phrase est neutre par défaut
+    is_neutral = False
+    neutral_patterns = [
+        r'\b(?:commence|début|débuter|démarrer|départ|arrivée|arriver|partir|aller|venir)\b',
+        r'\b(?:heure|h|minute|min|seconde|sec)\b',
+        r'\b(?:lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche)\b',
+        r'\b(?:janvier|février|mars|avril|mai|juin|juillet|août|septembre|octobre|novembre|décembre)\b',
+        r'\b(?:aujourd\'hui|demain|hier|maintenant|plus tard)\b',
+        r'\b(?:prendre|mettre|poser|déposer|laisser|garder)\b',
+        r'\b(?:sur|dans|sous|devant|derrière|à côté|près)\b'
+    ]
+    
+    for pattern in neutral_patterns:
+        if re.search(pattern, cleaned, re.IGNORECASE):
+            is_neutral = True
+            break
+    
     # Prédiction
     result = classifier(cleaned)[0]
     
     # Convertir le score en sentiment
     score = int(result['label'].split()[0])
-    if score <= 2:
+    if is_neutral:
+        sentiment = "neutral"
+    elif score <= 2:
         sentiment = "negative"
     elif score == 3:
         sentiment = "neutral"
@@ -159,25 +178,22 @@ def predict_sentiment(text):
     # Calculer les probabilités avec une distribution plus réaliste
     base_score = result['score']
     if sentiment == "negative":
-        # Pour un sentiment négatif, augmenter la probabilité négative
         probabilities = [
             min(0.95, base_score + 0.3),  # negative
             (1 - min(0.95, base_score + 0.3)) * 0.3,  # neutral
             (1 - min(0.95, base_score + 0.3)) * 0.7  # positive
         ]
     elif sentiment == "positive":
-        # Pour un sentiment positif, augmenter la probabilité positive
         probabilities = [
             (1 - min(0.95, base_score + 0.3)) * 0.3,  # negative
             (1 - min(0.95, base_score + 0.3)) * 0.7,  # neutral
             min(0.95, base_score + 0.3)  # positive
         ]
-    else:
-        # Pour un sentiment neutre, répartir équitablement
+    else:  # neutral
         probabilities = [
-            (1 - base_score) * 0.4,  # negative
-            base_score,  # neutral
-            (1 - base_score) * 0.6  # positive
+            (1 - base_score) * 0.2,  # negative
+            min(0.95, base_score + 0.2),  # neutral
+            (1 - base_score) * 0.8  # positive
         ]
     
     return sentiment, probabilities
