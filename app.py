@@ -156,20 +156,29 @@ def predict_sentiment(text):
     else:
         sentiment = "positive"
     
-    # Calculer les probabilités approximatives
-    probabilities = [0.0, 0.0, 0.0]  # [negative, neutral, positive]
+    # Calculer les probabilités avec une distribution plus réaliste
+    base_score = result['score']
     if sentiment == "negative":
-        probabilities[0] = result['score']
-        probabilities[1] = (1 - result['score']) / 2
-        probabilities[2] = (1 - result['score']) / 2
-    elif sentiment == "neutral":
-        probabilities[1] = result['score']
-        probabilities[0] = (1 - result['score']) / 2
-        probabilities[2] = (1 - result['score']) / 2
+        # Pour un sentiment négatif, augmenter la probabilité négative
+        probabilities = [
+            min(0.95, base_score + 0.3),  # negative
+            (1 - min(0.95, base_score + 0.3)) * 0.3,  # neutral
+            (1 - min(0.95, base_score + 0.3)) * 0.7  # positive
+        ]
+    elif sentiment == "positive":
+        # Pour un sentiment positif, augmenter la probabilité positive
+        probabilities = [
+            (1 - min(0.95, base_score + 0.3)) * 0.3,  # negative
+            (1 - min(0.95, base_score + 0.3)) * 0.7,  # neutral
+            min(0.95, base_score + 0.3)  # positive
+        ]
     else:
-        probabilities[2] = result['score']
-        probabilities[0] = (1 - result['score']) / 2
-        probabilities[1] = (1 - result['score']) / 2
+        # Pour un sentiment neutre, répartir équitablement
+        probabilities = [
+            (1 - base_score) * 0.4,  # negative
+            base_score,  # neutral
+            (1 - base_score) * 0.6  # positive
+        ]
     
     return sentiment, probabilities
 
