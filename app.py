@@ -1,5 +1,4 @@
 import streamlit as st
-import joblib
 import nltk
 from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize
@@ -15,6 +14,7 @@ nltk.data.path.append(nltk_data_dir)
 
 # Télécharger les données NLTK nécessaires
 nltk.download('punkt', download_dir=nltk_data_dir)
+nltk.download('stopwords', download_dir=nltk_data_dir)
 
 # Dictionnaire de mots négatifs en français avec leurs poids
 FRENCH_NEGATIVE_WORDS = {
@@ -77,32 +77,6 @@ FRENCH_POSITIVE_WORDS = {
     'spécialiste': 3, 'maître': 3, 'virtuose': 4, 'génie': 4, 'prodigieux': 4
 }
 
-# Dictionnaire de mots neutres en français avec leurs poids
-FRENCH_NEUTRAL_WORDS = {
-    'normal': 2, 'ordinaire': 2, 'habituel': 2, 'courant': 2, 'commun': 2, 'banal': 2,
-    'standard': 2, 'classique': 2, 'traditionnel': 2, 'conventionnel': 2, 'régulier': 2,
-    'fréquent': 2, 'quotidien': 2, 'journalier': 2, 'hebdomadaire': 2, 'mensuel': 2,
-    'annuel': 2, 'périodique': 2, 'systématique': 2, 'méthodique': 2, 'organisé': 2,
-    'structuré': 2, 'planifié': 2, 'programmé': 2, 'prévu': 2, 'anticipé': 2,
-    'attendu': 2, 'espéré': 2, 'souhaité': 2, 'désiré': 2, 'voulu': 2,
-    'choisi': 2, 'sélectionné': 2, 'retenu': 2, 'adopté': 2, 'approuvé': 2,
-    'validé': 2, 'confirmé': 2, 'certifié': 2, 'garanti': 2, 'assuré': 2,
-    'sécurisé': 2, 'protégé': 2, 'conservé': 2, 'maintenu': 2, 'préservé': 2,
-    'gardé': 2, 'retenu': 2, 'conservé': 2, 'stocké': 2, 'archivé': 2,
-    'enregistré': 2, 'sauvegardé': 2, 'copié': 2, 'dupliqué': 2, 'reproduit': 2,
-    'imité': 2, 'copié': 2, 'plagié': 2, 'reproduit': 2, 'dupliqué': 2,
-    'multiplié': 2, 'augmenté': 2, 'accru': 2, 'développé': 2, 'étendu': 2,
-    'élargi': 2, 'agrandi': 2, 'aggravé': 2, 'intensifié': 2, 'renforcé': 2,
-    'consolidé': 2, 'stabilisé': 2, 'équilibré': 2, 'harmonisé': 2, 'coordonné': 2,
-    'organisé': 2, 'structuré': 2, 'planifié': 2, 'programmé': 2, 'prévu': 2,
-    'anticipé': 2, 'attendu': 2, 'espéré': 2, 'souhaité': 2, 'désiré': 2,
-    'voulu': 2, 'choisi': 2, 'sélectionné': 2, 'retenu': 2, 'adopté': 2
-}
-
-# Charger le modèle et le vectorizer
-model = joblib.load('sentiment_model.pkl')
-vectorizer = joblib.load('vectorizer.pkl')
-
 # Charger le modèle de sentiment analysis en français
 @st.cache_resource
 def load_model():
@@ -154,9 +128,6 @@ def preprocess(text):
                 elif word in FRENCH_POSITIVE_WORDS:
                     weight = FRENCH_POSITIVE_WORDS[word]
                     processed_tokens.extend([word] * weight)
-                elif word in FRENCH_NEUTRAL_WORDS:
-                    weight = FRENCH_NEUTRAL_WORDS[word]
-                    processed_tokens.extend([word] * weight)
                 else:
                     processed_tokens.append(word)
         tokens = processed_tokens
@@ -167,14 +138,39 @@ def preprocess(text):
     return ' '.join(tokens)
 
 def predict_sentiment(text):
+    # Charger le modèle
+    classifier = load_model()
+    
     # Prétraitement
     cleaned = preprocess(text)
-    # Vectorisation
-    vect = vectorizer.transform([cleaned])
+    
     # Prédiction
-    sentiment = model.predict(vect)[0]
-    # Probabilités
-    probabilities = model.predict_proba(vect)[0]
+    result = classifier(cleaned)[0]
+    
+    # Convertir le score en sentiment
+    score = int(result['label'].split()[0])
+    if score <= 2:
+        sentiment = "negative"
+    elif score == 3:
+        sentiment = "neutral"
+    else:
+        sentiment = "positive"
+    
+    # Calculer les probabilités approximatives
+    probabilities = [0.0, 0.0, 0.0]  # [negative, neutral, positive]
+    if sentiment == "negative":
+        probabilities[0] = result['score']
+        probabilities[1] = (1 - result['score']) / 2
+        probabilities[2] = (1 - result['score']) / 2
+    elif sentiment == "neutral":
+        probabilities[1] = result['score']
+        probabilities[0] = (1 - result['score']) / 2
+        probabilities[2] = (1 - result['score']) / 2
+    else:
+        probabilities[2] = result['score']
+        probabilities[0] = (1 - result['score']) / 2
+        probabilities[1] = (1 - result['score']) / 2
+    
     return sentiment, probabilities
 
 # Interface utilisateur
