@@ -49,4 +49,9 @@ ENV/
 
 # Logs
 *.log
-logs/ 
+logs/
+
+# Environment variables
+.env
+.env.*
+!.env.example 
